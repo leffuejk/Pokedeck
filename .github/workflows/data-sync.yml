@@ -1,0 +1,83 @@
+name: Data Sync
+
+# Populates the production database with Pokémon TCG reference data:
+#   - cards: mirror all sets + cards from pokemontcg.io (idempotent upsert)
+#   - archetypes: seed the curated strategy list
+# Runs on demand, and monthly to pick up newly released sets.
+
+on:
+  workflow_dispatch:
+    inputs:
+      task:
+        description: What to run
+        type: choice
+        default: both
+        options: [both, cards, archetypes]
+  schedule:
+    - cron: "0 6 1 * *" # 06:00 UTC on the 1st of each month — refresh cards
+
+concurrency:
+  group: data-sync
+  cancel-in-progress: false
+
+permissions:
+  id-token: write
+  contents: read
+
+jobs:
+  sync:
+    name: Sync reference data
+    runs-on: ubuntu-latest
+    environment: production
+    env:
+      DATABASE_URL: ${{ secrets.DATABASE_URL }}
+      AUTH_SECRET: ${{ secrets.AUTH_SECRET }}
+      POKEMONTCG_API_KEY: ${{ secrets.POKEMONTCG_API_KEY }}
+      TASK: ${{ github.event.inputs.task || 'cards' }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node 22
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Azure login (OIDC)
+        uses: azure/login@v2
+        with:
+          client-id: ${{ vars.AZURE_CLIENT_ID }}
+          tenant-id: ${{ vars.AZURE_TENANT_ID }}
+          subscription-id: ${{ vars.AZURE_SUBSCRIPTION_ID }}
+
+      - name: Open Postgres firewall for runner
+        id: pgfw
+        run: |
+          set -euo pipefail
+          RUNNER_IP=$(curl -s https://api.ipify.org)
+          az postgres flexible-server firewall-rule create \
+            --resource-group "${{ vars.AZURE_RESOURCE_GROUP }}" \
+            --server-name "${{ vars.POSTGRES_SERVER_NAME }}" \
+            --name "gha-datasync-${GITHUB_RUN_ID}" \
+            --start-ip-address "$RUNNER_IP" --end-ip-address "$RUNNER_IP"
+          sleep 10
+
+      - name: Seed archetypes
+        if: env.TASK == 'both' || env.TASK == 'archetypes'
+        run: npm run seed:archetypes --workspace apps/api
+
+      - name: Sync cards
+        if: env.TASK == 'both' || env.TASK == 'cards'
+        run: npm run cards:sync --workspace apps/api
+
+      - name: Close Postgres firewall for runner
+        if: always() && steps.pgfw.outcome == 'success'
+        run: |
+          az postgres flexible-server firewall-rule delete --yes \
+            --resource-group "${{ vars.AZURE_RESOURCE_GROUP }}" \
+            --server-name "${{ vars.POSTGRES_SERVER_NAME }}" \
+            --name "gha-datasync-${GITHUB_RUN_ID}" || true
