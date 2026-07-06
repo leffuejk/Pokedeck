@@ -1,0 +1,13 @@
+{
+  "resourceGroup": "rg-",
+  "containerRegistryRegistries": "cr",
+  "appContainerApps": "ca-",
+  "appManagedEnvironments": "cae-",
+  "operationalInsightsWorkspaces": "log-",
+  "insightsComponents": "appi-",
+  "dBforPostgreSQLFlexibleServers": "psql-",
+  "keyVaultVaults": "kv-",
+  "managedIdentityUserAssignedIdentities": "id-",
+  "webStaticSites": "stapp-",
+  "cognitiveServicesAccounts": "ai-"
+}

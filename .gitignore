@@ -1,0 +1,43 @@
+# Dependencies
+node_modules/
+.pnp
+.pnp.js
+
+# Build output
+dist/
+build/
+*.tsbuildinfo
+.vite/
+
+# Env & secrets
+.env
+.env.*
+!.env.example
+*.local
+
+# Azure / deploy
+.azure/
+azure.env
+
+# Logs
+*.log
+npm-debug.log*
+logs/
+
+# Editor / OS
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/*
+!.vscode/extensions.json
+!.vscode/settings.shared.json
+
+# Test / coverage
+coverage/
+.nyc_output/
+
+# Drizzle
+apps/api/drizzle/meta/_journal.json.bak
+
+# Compiled Bicep ARM output
+infra/main.json

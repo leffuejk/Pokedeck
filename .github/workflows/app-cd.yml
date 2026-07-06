@@ -1,0 +1,114 @@
+name: App CD
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - "apps/**"
+      - "packages/**"
+      - ".github/workflows/app-cd.yml"
+  workflow_dispatch:
+
+concurrency:
+  group: app-cd
+  cancel-in-progress: false
+
+permissions:
+  id-token: write
+  contents: read
+
+jobs:
+  api:
+    name: Build + push API image, migrate, deploy Container App
+    runs-on: ubuntu-latest
+    environment: production
+    env:
+      DATABASE_URL: ${{ secrets.DATABASE_URL }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node 22
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Azure login (OIDC)
+        uses: azure/login@v2
+        with:
+          client-id: ${{ vars.AZURE_CLIENT_ID }}
+          tenant-id: ${{ vars.AZURE_TENANT_ID }}
+          subscription-id: ${{ vars.AZURE_SUBSCRIPTION_ID }}
+
+      - name: ACR login
+        run: az acr login --name "$(echo '${{ vars.ACR_LOGIN_SERVER }}' | cut -d. -f1)"
+
+      - name: Build and push API image
+        id: image
+        run: |
+          set -euo pipefail
+          IMAGE="${{ vars.ACR_LOGIN_SERVER }}/pokedeck-api:${GITHUB_SHA}"
+          IMAGE_LATEST="${{ vars.ACR_LOGIN_SERVER }}/pokedeck-api:latest"
+          docker build -f apps/api/Dockerfile -t "$IMAGE" -t "$IMAGE_LATEST" .
+          docker push "$IMAGE"
+          docker push "$IMAGE_LATEST"
+          echo "image=$IMAGE" >> "$GITHUB_OUTPUT"
+
+      # Run migrations BEFORE swapping the container image so the new code
+      # never runs against an un-migrated schema. Gated on the secret being set
+      # (secrets cannot be read in `if:`, so DATABASE_URL is mapped to job env above).
+      - name: Run database migrations (production)
+        if: env.DATABASE_URL != ''
+        run: npm run db:migrate --workspace apps/api
+
+      - name: Update Container App to new image
+        run: |
+          set -euo pipefail
+          az containerapp update \
+            --name "${{ vars.CONTAINER_APP_NAME }}" \
+            --resource-group "${{ vars.AZURE_RESOURCE_GROUP }}" \
+            --image "${{ steps.image.outputs.image }}"
+
+      - name: Summary
+        run: |
+          {
+            echo "## API deployed"
+            echo ""
+            echo "- Image: \`${{ steps.image.outputs.image }}\`"
+            echo "- Container App: \`${{ vars.CONTAINER_APP_NAME }}\` (rg \`${{ vars.AZURE_RESOURCE_GROUP }}\`)"
+          } >> "$GITHUB_STEP_SUMMARY"
+
+  web:
+    name: Build + deploy SPA to Static Web Apps
+    runs-on: ubuntu-latest
+    environment: production
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node 22
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build SPA
+        env:
+          VITE_API_BASE: ${{ vars.VITE_API_BASE }}
+        run: npm run build --workspace apps/web
+
+      - name: Deploy to Azure Static Web Apps
+        uses: Azure/static-web-apps-deploy@v1
+        with:
+          azure_static_web_apps_api_token: ${{ secrets.AZURE_STATIC_WEB_APPS_API_TOKEN }}
+          action: upload
+          app_location: apps/web/dist
+          skip_app_build: true
