@@ -28,6 +28,15 @@ jobs:
       # env.ts validates the full config on import (db:migrate loads it), so the
       # migration step needs AUTH_SECRET present even though it only touches the DB.
       AUTH_SECRET: ${{ secrets.AUTH_SECRET }}
+      # OAuth provider credentials (only those set take effect; providers with
+      # empty client IDs are skipped both here and in the API's provider list).
+      AUTH_MICROSOFT_ENTRA_ID_ID: ${{ secrets.AUTH_MICROSOFT_ENTRA_ID_ID }}
+      AUTH_MICROSOFT_ENTRA_ID_SECRET: ${{ secrets.AUTH_MICROSOFT_ENTRA_ID_SECRET }}
+      AUTH_MICROSOFT_ENTRA_ID_ISSUER: ${{ secrets.AUTH_MICROSOFT_ENTRA_ID_ISSUER }}
+      AUTH_GITHUB_ID: ${{ secrets.AUTH_GITHUB_ID }}
+      AUTH_GITHUB_SECRET: ${{ secrets.AUTH_GITHUB_SECRET }}
+      AUTH_GOOGLE_ID: ${{ secrets.AUTH_GOOGLE_ID }}
+      AUTH_GOOGLE_SECRET: ${{ secrets.AUTH_GOOGLE_SECRET }}
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -93,19 +102,39 @@ jobs:
             --server-name "${{ vars.POSTGRES_SERVER_NAME }}" \
             --name "gha-migrate-${GITHUB_RUN_ID}" || true
 
-      - name: Update Container App to new image
+      - name: Update Container App (image + origin + auth providers)
+        env:
+          APP: ${{ vars.CONTAINER_APP_NAME }}
+          RG: ${{ vars.AZURE_RESOURCE_GROUP }}
+          IMAGE: ${{ steps.image.outputs.image }}
+          ORIGIN: ${{ vars.WEB_ORIGIN }}
         run: |
           set -euo pipefail
-          # WEB_ORIGIN/API_ORIGIN can't be set in Bicep (the SWA and Container App
-          # reference each other), so set them here from known values. --set-env-vars
-          # merges these two without disturbing the DB/Foundry/secret env vars.
-          az containerapp update \
-            --name "${{ vars.CONTAINER_APP_NAME }}" \
-            --resource-group "${{ vars.AZURE_RESOURCE_GROUP }}" \
-            --image "${{ steps.image.outputs.image }}" \
-            --set-env-vars \
-              WEB_ORIGIN="${{ vars.WEB_ORIGIN }}" \
-              API_ORIGIN="${{ vars.VITE_API_BASE }}"
+          # The app is served same-origin: the Static Web App proxies /api/* to this
+          # Container App, so WEB_ORIGIN and API_ORIGIN are both the SWA origin.
+          SECRETS=()
+          ENVV=( "AUTH_TRUST_HOST=true" "WEB_ORIGIN=$ORIGIN" "API_ORIGIN=$ORIGIN" )
+
+          if [ -n "${AUTH_MICROSOFT_ENTRA_ID_ID:-}" ]; then
+            SECRETS+=( "entra-client-secret=$AUTH_MICROSOFT_ENTRA_ID_SECRET" )
+            ENVV+=( "AUTH_MICROSOFT_ENTRA_ID_ID=$AUTH_MICROSOFT_ENTRA_ID_ID" \
+                    "AUTH_MICROSOFT_ENTRA_ID_SECRET=secretref:entra-client-secret" \
+                    "AUTH_MICROSOFT_ENTRA_ID_ISSUER=${AUTH_MICROSOFT_ENTRA_ID_ISSUER:-}" )
+          fi
+          if [ -n "${AUTH_GITHUB_ID:-}" ]; then
+            SECRETS+=( "github-client-secret=$AUTH_GITHUB_SECRET" )
+            ENVV+=( "AUTH_GITHUB_ID=$AUTH_GITHUB_ID" "AUTH_GITHUB_SECRET=secretref:github-client-secret" )
+          fi
+          if [ -n "${AUTH_GOOGLE_ID:-}" ]; then
+            SECRETS+=( "google-client-secret=$AUTH_GOOGLE_SECRET" )
+            ENVV+=( "AUTH_GOOGLE_ID=$AUTH_GOOGLE_ID" "AUTH_GOOGLE_SECRET=secretref:google-client-secret" )
+          fi
+
+          if [ ${#SECRETS[@]} -gt 0 ]; then
+            az containerapp secret set --name "$APP" --resource-group "$RG" --secrets "${SECRETS[@]}"
+          fi
+          az containerapp update --name "$APP" --resource-group "$RG" \
+            --image "$IMAGE" --set-env-vars "${ENVV[@]}"
 
       - name: Summary
         run: |
