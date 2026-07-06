@@ -59,12 +59,36 @@ jobs:
           docker push "$IMAGE_LATEST"
           echo "image=$IMAGE" >> "$GITHUB_OUTPUT"
 
+      # The Postgres Flexible Server only allows Azure services by default; a
+      # GitHub-hosted runner has an arbitrary public IP. Open a temporary,
+      # single-IP firewall rule for the migration, then always remove it.
+      - name: Open Postgres firewall for runner
+        if: env.DATABASE_URL != '' && vars.POSTGRES_SERVER_NAME != ''
+        id: pgfw
+        run: |
+          set -euo pipefail
+          RUNNER_IP=$(curl -s https://api.ipify.org)
+          az postgres flexible-server firewall-rule create \
+            --resource-group "${{ vars.AZURE_RESOURCE_GROUP }}" \
+            --name "${{ vars.POSTGRES_SERVER_NAME }}" \
+            --rule-name "gha-migrate-${GITHUB_RUN_ID}" \
+            --start-ip-address "$RUNNER_IP" --end-ip-address "$RUNNER_IP"
+          sleep 10
+
       # Run migrations BEFORE swapping the container image so the new code
       # never runs against an un-migrated schema. Gated on the secret being set
       # (secrets cannot be read in `if:`, so DATABASE_URL is mapped to job env above).
       - name: Run database migrations (production)
         if: env.DATABASE_URL != ''
         run: npm run db:migrate --workspace apps/api
+
+      - name: Close Postgres firewall for runner
+        if: always() && steps.pgfw.outcome == 'success'
+        run: |
+          az postgres flexible-server firewall-rule delete --yes \
+            --resource-group "${{ vars.AZURE_RESOURCE_GROUP }}" \
+            --name "${{ vars.POSTGRES_SERVER_NAME }}" \
+            --rule-name "gha-migrate-${GITHUB_RUN_ID}" || true
 
       - name: Update Container App to new image
         run: |
