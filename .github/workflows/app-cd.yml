@@ -70,7 +70,7 @@ jobs:
           RUNNER_IP=$(curl -s https://api.ipify.org)
           az postgres flexible-server firewall-rule create \
             --resource-group "${{ vars.AZURE_RESOURCE_GROUP }}" \
-            --name "${{ vars.POSTGRES_SERVER_NAME }}" \
+            --server-name "${{ vars.POSTGRES_SERVER_NAME }}" \
             --rule-name "gha-migrate-${GITHUB_RUN_ID}" \
             --start-ip-address "$RUNNER_IP" --end-ip-address "$RUNNER_IP"
           sleep 10
@@ -87,7 +87,7 @@ jobs:
         run: |
           az postgres flexible-server firewall-rule delete --yes \
             --resource-group "${{ vars.AZURE_RESOURCE_GROUP }}" \
-            --name "${{ vars.POSTGRES_SERVER_NAME }}" \
+            --server-name "${{ vars.POSTGRES_SERVER_NAME }}" \
             --rule-name "gha-migrate-${GITHUB_RUN_ID}" || true
 
       - name: Update Container App to new image
