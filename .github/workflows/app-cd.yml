@@ -25,6 +25,9 @@ jobs:
     environment: production
     env:
       DATABASE_URL: ${{ secrets.DATABASE_URL }}
+      # env.ts validates the full config on import (db:migrate loads it), so the
+      # migration step needs AUTH_SECRET present even though it only touches the DB.
+      AUTH_SECRET: ${{ secrets.AUTH_SECRET }}
     steps:
       - name: Checkout
         uses: actions/checkout@v4
