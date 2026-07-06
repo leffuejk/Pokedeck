@@ -18,7 +18,7 @@ export interface FoundryClient {
 }
 
 export function isFoundryConfigured(): boolean {
-  return Boolean(env.AZURE_AI_FOUNDRY_PROJECT_ENDPOINT);
+  return Boolean(env.foundryProjectEndpoint);
 }
 
 export function getFoundry(): Promise<FoundryClient | null> {
@@ -32,8 +32,8 @@ async function build(): Promise<FoundryClient | null> {
     // Lazy import so the app boots even if the package isn't installed in dev.
     const { AIProjectClient } = await import('@azure/ai-projects');
     const credential = new DefaultAzureCredential();
-    const project = new AIProjectClient(env.AZURE_AI_FOUNDRY_PROJECT_ENDPOINT!, credential);
-    const deployment = env.AZURE_AI_FOUNDRY_MODEL_DEPLOYMENT;
+    const project = new AIProjectClient(env.foundryProjectEndpoint!, credential);
+    const deployment = env.foundryModelDeployment;
 
     return {
       async complete(system: string, user: string): Promise<string> {
