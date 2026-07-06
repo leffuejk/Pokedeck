@@ -17,11 +17,16 @@ function toWebRequest(req: FastifyRequest): Request {
   }
   const method = req.method.toUpperCase();
   const hasBody = method !== 'GET' && method !== 'HEAD';
-  return new Request(url, {
-    method,
-    headers,
-    body: hasBody && req.body != null ? JSON.stringify(req.body) : undefined,
-  });
+  // Auth.js bodies are raw (form-urlencoded for signin/callback). The auth-scoped
+  // content-type parser keeps req.body as the verbatim string, so pass it through
+  // untouched and preserve the original Content-Type header.
+  const body =
+    hasBody && req.body != null
+      ? typeof req.body === 'string'
+        ? req.body
+        : JSON.stringify(req.body)
+      : undefined;
+  return new Request(url, { method, headers, body });
 }
 
 async function sendWebResponse(res: FastifyReply, response: Response): Promise<void> {
@@ -54,6 +59,16 @@ export async function getSessionFromRequest(req: FastifyRequest): Promise<Sessio
 
 export async function authPlugin(app: FastifyInstance): Promise<void> {
   app.decorateRequest('session', null);
+
+  // Auth.js needs the raw request body (signin/callback are form-urlencoded, which
+  // Fastify otherwise rejects with 415). Capture bodies verbatim as a string. This
+  // parser is scoped to the auth plugin's encapsulation context, so the JSON API
+  // routes registered elsewhere keep their normal JSON parsing.
+  app.addContentTypeParser(
+    ['application/x-www-form-urlencoded', 'application/json'],
+    { parseAs: 'string' },
+    (_req, body, done) => done(null, body),
+  );
 
   app.all('/api/auth/*', async (req, reply) => {
     const response = await Auth(toWebRequest(req), authConfig);
