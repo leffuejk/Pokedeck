@@ -71,7 +71,7 @@ jobs:
           az postgres flexible-server firewall-rule create \
             --resource-group "${{ vars.AZURE_RESOURCE_GROUP }}" \
             --server-name "${{ vars.POSTGRES_SERVER_NAME }}" \
-            --rule-name "gha-migrate-${GITHUB_RUN_ID}" \
+            --name "gha-migrate-${GITHUB_RUN_ID}" \
             --start-ip-address "$RUNNER_IP" --end-ip-address "$RUNNER_IP"
           sleep 10
 
@@ -88,7 +88,7 @@ jobs:
           az postgres flexible-server firewall-rule delete --yes \
             --resource-group "${{ vars.AZURE_RESOURCE_GROUP }}" \
             --server-name "${{ vars.POSTGRES_SERVER_NAME }}" \
-            --rule-name "gha-migrate-${GITHUB_RUN_ID}" || true
+            --name "gha-migrate-${GITHUB_RUN_ID}" || true
 
       - name: Update Container App to new image
         run: |
