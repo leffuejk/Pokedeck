@@ -57,10 +57,33 @@ interface PagedResponse<T> {
   totalCount: number;
 }
 
-async function get<T>(path: string): Promise<PagedResponse<T>> {
-  const res = await fetch(`${BASE}${path}`, { headers: headers() });
-  if (!res.ok) throw new Error(`pokemontcg ${path} -> ${res.status} ${res.statusText}`);
-  return (await res.json()) as PagedResponse<T>;
+const RETRYABLE = new Set([408, 425, 429, 500, 502, 503, 504]);
+const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
+
+/**
+ * GET a page with retry + exponential backoff. The pokemontcg.io API
+ * intermittently returns 429/5xx (e.g. transient 504s); a single blip should
+ * not abort a full sync, so retry up to `maxRetries` with jittered backoff.
+ */
+async function get<T>(path: string, maxRetries = 5): Promise<PagedResponse<T>> {
+  let lastErr: unknown;
+  for (let attempt = 0; attempt <= maxRetries; attempt++) {
+    try {
+      const res = await fetch(`${BASE}${path}`, { headers: headers() });
+      if (res.ok) return (await res.json()) as PagedResponse<T>;
+      if (!RETRYABLE.has(res.status) || attempt === maxRetries) {
+        throw new Error(`pokemontcg ${path} -> ${res.status} ${res.statusText}`);
+      }
+      lastErr = new Error(`${res.status} ${res.statusText}`);
+    } catch (err) {
+      // Network/timeout errors are retryable too.
+      lastErr = err;
+      if (attempt === maxRetries) throw err;
+    }
+    const backoff = Math.min(30_000, 500 * 2 ** attempt) + Math.floor(Math.random() * 500);
+    await sleep(backoff);
+  }
+  throw lastErr instanceof Error ? lastErr : new Error(String(lastErr));
 }
 
 export async function fetchAllSets(): Promise<PtcgSet[]> {
