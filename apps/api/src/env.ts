@@ -30,7 +30,7 @@ const schema = z.object({
   POKEMONTCG_API_KEY: z.string().optional(),
 
   AZURE_AI_FOUNDRY_PROJECT_ENDPOINT: z.string().optional(),
-  AZURE_AI_FOUNDRY_MODEL_DEPLOYMENT: z.string().default('gpt-4o'),
+  AZURE_AI_FOUNDRY_MODEL_DEPLOYMENT: z.string().default('gpt-5-mini'),
   AZURE_AI_FOUNDRY_AGENT_ID: z.string().optional(),
 });
 
