@@ -96,10 +96,16 @@ jobs:
       - name: Update Container App to new image
         run: |
           set -euo pipefail
+          # WEB_ORIGIN/API_ORIGIN can't be set in Bicep (the SWA and Container App
+          # reference each other), so set them here from known values. --set-env-vars
+          # merges these two without disturbing the DB/Foundry/secret env vars.
           az containerapp update \
             --name "${{ vars.CONTAINER_APP_NAME }}" \
             --resource-group "${{ vars.AZURE_RESOURCE_GROUP }}" \
-            --image "${{ steps.image.outputs.image }}"
+            --image "${{ steps.image.outputs.image }}" \
+            --set-env-vars \
+              WEB_ORIGIN="${{ vars.WEB_ORIGIN }}" \
+              API_ORIGIN="${{ vars.VITE_API_BASE }}"
 
       - name: Summary
         run: |

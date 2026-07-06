@@ -54,7 +54,14 @@ const schema = z.object({
   AZURE_AI_FOUNDRY_AGENT_ID: z.string().optional(),
 });
 
-const parsed = schema.safeParse(process.env);
+// Treat empty-string env vars as unset so schema defaults apply. (Azure Container
+// Apps materializes unset template values as "", which would otherwise fail
+// validators like WEB_ORIGIN's `.url()` and crash the process at boot.)
+const cleanedEnv = Object.fromEntries(
+  Object.entries(process.env).map(([k, v]) => [k, v === '' ? undefined : v]),
+);
+
+const parsed = schema.safeParse(cleanedEnv);
 if (!parsed.success) {
   console.error('❌ Invalid environment:', parsed.error.flatten().fieldErrors);
   throw new Error('Invalid environment configuration');
