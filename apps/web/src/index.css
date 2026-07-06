@@ -1,0 +1,112 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* ─────────────────────────────────────────────
+   Playful Pokedeck theme — CSS variables.
+   Values are space-separated RGB channels so Tailwind's
+   `rgb(var(--x) / <alpha-value>)` can add opacity.
+   ───────────────────────────────────────────── */
+:root {
+  --pd-bg: 248 250 252; /* soft off-white */
+  --pd-surface: 255 255 255;
+  --pd-surface-2: 241 245 249;
+  --pd-border: 226 232 240;
+  --pd-ink: 15 23 42; /* slate-900 */
+  --pd-muted: 100 116 139; /* slate-500 */
+  --pd-brand: 239 83 80; /* pokéball red */
+  --pd-brand-soft: 254 226 226;
+  --pd-accent: 56 189 248; /* sky */
+  color-scheme: light;
+}
+
+:root.dark {
+  --pd-bg: 12 16 27;
+  --pd-surface: 22 28 43;
+  --pd-surface-2: 30 38 56;
+  --pd-border: 44 54 78;
+  --pd-ink: 226 232 240;
+  --pd-muted: 148 163 184;
+  --pd-brand: 248 113 113;
+  --pd-brand-soft: 60 26 30;
+  --pd-accent: 56 189 248;
+  color-scheme: dark;
+}
+
+@layer base {
+  html,
+  body {
+    height: 100%;
+  }
+  body {
+    @apply bg-bg text-ink font-sans antialiased;
+    background-image: radial-gradient(
+        circle at 12% -10%,
+        rgb(var(--pd-brand) / 0.1),
+        transparent 40%
+      ),
+      radial-gradient(circle at 90% 0%, rgb(var(--pd-accent) / 0.1), transparent 42%);
+    background-attachment: fixed;
+  }
+  h1,
+  h2,
+  h3,
+  h4 {
+    @apply font-display font-extrabold tracking-tight;
+  }
+  * {
+    -webkit-tap-highlight-color: transparent;
+  }
+}
+
+@layer components {
+  .pd-card {
+    @apply rounded-xl2 border border-border bg-surface shadow-soft;
+  }
+  .pd-btn {
+    @apply inline-flex items-center justify-center gap-2 rounded-full font-semibold
+      transition-all duration-200 ease-spring active:scale-95
+      focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand/60
+      disabled:cursor-not-allowed disabled:opacity-50;
+  }
+  .pd-btn-primary {
+    @apply pd-btn bg-brand px-5 py-2.5 text-white shadow-soft hover:-translate-y-0.5 hover:shadow-pop;
+  }
+  .pd-btn-ghost {
+    @apply pd-btn border border-border bg-surface px-4 py-2 text-ink hover:bg-surface-2;
+  }
+  .pd-input {
+    @apply w-full rounded-full border border-border bg-surface px-4 py-2.5 text-ink
+      placeholder:text-muted focus:border-brand focus:outline-none focus:ring-2 focus:ring-brand/40;
+  }
+  .pd-chip {
+    @apply inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-xs font-bold;
+  }
+}
+
+/* Reduced motion respect */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}
+
+/* Thin, friendly scrollbars */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: rgb(var(--pd-border)) transparent;
+}
+*::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+*::-webkit-scrollbar-thumb {
+  background: rgb(var(--pd-border));
+  border-radius: 9999px;
+  border: 2px solid transparent;
+  background-clip: content-box;
+}

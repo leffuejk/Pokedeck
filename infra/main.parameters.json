@@ -1,0 +1,57 @@
+{
+  "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentParameters.json#",
+  "contentVersion": "1.0.0.0",
+  "parameters": {
+    "location": {
+      "value": "centralus"
+    },
+    "namePrefix": {
+      "value": "pokedeck"
+    },
+    "environmentName": {
+      "value": "dev"
+    },
+    "tags": {
+      "value": {
+        "application": "pokedeck",
+        "environment": "dev"
+      }
+    },
+    "postgresAdminLogin": {
+      "value": "pokedeckadmin"
+    },
+    "postgresAdminPassword": {
+      "value": "REPLACE_ME_VIA_CI"
+    },
+    "authSecret": {
+      "value": "REPLACE_ME_VIA_CI"
+    },
+    "oauthGoogleClientSecret": {
+      "value": ""
+    },
+    "oauthGithubClientSecret": {
+      "value": ""
+    },
+    "apiContainerImage": {
+      "value": "mcr.microsoft.com/k8se/quickstart:latest"
+    },
+    "foundryModelDeploymentName": {
+      "value": "gpt-4o"
+    },
+    "foundryModelName": {
+      "value": "gpt-4o"
+    },
+    "foundryModelVersion": {
+      "value": ""
+    },
+    "foundryDeploymentCapacity": {
+      "value": 20
+    },
+    "entraAdminObjectId": {
+      "value": ""
+    },
+    "entraAdminName": {
+      "value": ""
+    }
+  }
+}

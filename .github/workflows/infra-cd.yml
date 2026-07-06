@@ -1,0 +1,95 @@
+name: Infra CD
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - "infra/**"
+      - ".github/workflows/infra-cd.yml"
+  workflow_dispatch:
+
+concurrency:
+  group: infra-cd
+  cancel-in-progress: false
+
+permissions:
+  id-token: write
+  contents: read
+
+jobs:
+  deploy-infra:
+    name: Deploy Bicep to centralus
+    runs-on: ubuntu-latest
+    environment: production
+    outputs:
+      containerAppName: ${{ steps.deploy.outputs.containerAppName }}
+      acrLoginServer: ${{ steps.deploy.outputs.acrLoginServer }}
+      staticWebAppDefaultHostname: ${{ steps.deploy.outputs.staticWebAppDefaultHostname }}
+      resourceGroupName: ${{ steps.deploy.outputs.resourceGroupName }}
+      containerAppFqdn: ${{ steps.deploy.outputs.containerAppFqdn }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Azure login (OIDC)
+        uses: azure/login@v2
+        with:
+          client-id: ${{ vars.AZURE_CLIENT_ID }}
+          tenant-id: ${{ vars.AZURE_TENANT_ID }}
+          subscription-id: ${{ vars.AZURE_SUBSCRIPTION_ID }}
+
+      - name: Deploy infrastructure (subscription scope)
+        id: deploy
+        uses: azure/cli@v2
+        env:
+          POSTGRES_ADMIN_PASSWORD: ${{ secrets.POSTGRES_ADMIN_PASSWORD }}
+          AUTH_SECRET: ${{ secrets.AUTH_SECRET }}
+          OAUTH_GOOGLE_CLIENT_SECRET: ${{ secrets.OAUTH_GOOGLE_CLIENT_SECRET }}
+          OAUTH_GITHUB_CLIENT_SECRET: ${{ secrets.OAUTH_GITHUB_CLIENT_SECRET }}
+        with:
+          azcliversion: latest
+          inlineScript: |
+            set -euo pipefail
+            DEPLOY_NAME="pokedeck-infra-${GITHUB_SHA::7}-${GITHUB_RUN_NUMBER}"
+
+            az deployment sub create \
+              --name "$DEPLOY_NAME" \
+              --location centralus \
+              --template-file infra/main.bicep \
+              --parameters infra/main.parameters.json \
+              --parameters location=centralus \
+                           postgresAdminPassword="$POSTGRES_ADMIN_PASSWORD" \
+                           authSecret="$AUTH_SECRET" \
+                           oauthGoogleClientSecret="${OAUTH_GOOGLE_CLIENT_SECRET:-}" \
+                           oauthGithubClientSecret="${OAUTH_GITHUB_CLIENT_SECRET:-}"
+
+            echo "Reading deployment outputs..."
+            OUTPUTS=$(az deployment sub show --name "$DEPLOY_NAME" --query properties.outputs -o json)
+
+            get_out() { echo "$OUTPUTS" | jq -r --arg k "$1" '.[$k].value // empty'; }
+
+            {
+              echo "containerAppName=$(get_out containerAppName)"
+              echo "acrLoginServer=$(get_out acrLoginServer)"
+              echo "staticWebAppDefaultHostname=$(get_out staticWebAppDefaultHostname)"
+              echo "resourceGroupName=$(get_out resourceGroupName)"
+              echo "containerAppFqdn=$(get_out containerAppFqdn)"
+            } >> "$GITHUB_OUTPUT"
+
+      - name: Summary
+        run: |
+          {
+            echo "## Infrastructure deployed to centralus"
+            echo ""
+            echo "| Output | Value |"
+            echo "| --- | --- |"
+            echo "| resourceGroupName | ${{ steps.deploy.outputs.resourceGroupName }} |"
+            echo "| containerAppName | ${{ steps.deploy.outputs.containerAppName }} |"
+            echo "| containerAppFqdn | ${{ steps.deploy.outputs.containerAppFqdn }} |"
+            echo "| acrLoginServer | ${{ steps.deploy.outputs.acrLoginServer }} |"
+            echo "| staticWebAppDefaultHostname | ${{ steps.deploy.outputs.staticWebAppDefaultHostname }} |"
+            echo ""
+            echo "> Reminder: copy these values into the repo variables"
+            echo "> \`ACR_LOGIN_SERVER\`, \`CONTAINER_APP_NAME\`, \`AZURE_RESOURCE_GROUP\` so app-cd.yml can deploy."
+          } >> "$GITHUB_STEP_SUMMARY"
