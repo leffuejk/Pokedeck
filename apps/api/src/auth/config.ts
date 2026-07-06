@@ -2,7 +2,6 @@ import type { AuthConfig } from '@auth/core';
 import { DrizzleAdapter } from '@auth/drizzle-adapter';
 import MicrosoftEntraId from '@auth/core/providers/microsoft-entra-id';
 import Google from '@auth/core/providers/google';
-import GitHub from '@auth/core/providers/github';
 import type { Provider } from '@auth/core/providers';
 import { db } from '../db/client.js';
 import {
@@ -28,9 +27,6 @@ function providers(): Provider[] {
   }
   if (env.AUTH_GOOGLE_ID && env.AUTH_GOOGLE_SECRET) {
     list.push(Google({ clientId: env.AUTH_GOOGLE_ID, clientSecret: env.AUTH_GOOGLE_SECRET }));
-  }
-  if (env.AUTH_GITHUB_ID && env.AUTH_GITHUB_SECRET) {
-    list.push(GitHub({ clientId: env.AUTH_GITHUB_ID, clientSecret: env.AUTH_GITHUB_SECRET }));
   }
   return list;
 }
