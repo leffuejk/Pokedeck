@@ -33,8 +33,6 @@ jobs:
       AUTH_MICROSOFT_ENTRA_ID_ID: ${{ secrets.AUTH_MICROSOFT_ENTRA_ID_ID }}
       AUTH_MICROSOFT_ENTRA_ID_SECRET: ${{ secrets.AUTH_MICROSOFT_ENTRA_ID_SECRET }}
       AUTH_MICROSOFT_ENTRA_ID_ISSUER: ${{ secrets.AUTH_MICROSOFT_ENTRA_ID_ISSUER }}
-      AUTH_GITHUB_ID: ${{ secrets.AUTH_GITHUB_ID }}
-      AUTH_GITHUB_SECRET: ${{ secrets.AUTH_GITHUB_SECRET }}
       AUTH_GOOGLE_ID: ${{ secrets.AUTH_GOOGLE_ID }}
       AUTH_GOOGLE_SECRET: ${{ secrets.AUTH_GOOGLE_SECRET }}
     steps:
@@ -120,10 +118,6 @@ jobs:
             ENVV+=( "AUTH_MICROSOFT_ENTRA_ID_ID=$AUTH_MICROSOFT_ENTRA_ID_ID" \
                     "AUTH_MICROSOFT_ENTRA_ID_SECRET=secretref:entra-client-secret" \
                     "AUTH_MICROSOFT_ENTRA_ID_ISSUER=${AUTH_MICROSOFT_ENTRA_ID_ISSUER:-}" )
-          fi
-          if [ -n "${AUTH_GITHUB_ID:-}" ]; then
-            SECRETS+=( "github-client-secret=$AUTH_GITHUB_SECRET" )
-            ENVV+=( "AUTH_GITHUB_ID=$AUTH_GITHUB_ID" "AUTH_GITHUB_SECRET=secretref:github-client-secret" )
           fi
           if [ -n "${AUTH_GOOGLE_ID:-}" ]; then
             SECRETS+=( "google-client-secret=$AUTH_GOOGLE_SECRET" )
