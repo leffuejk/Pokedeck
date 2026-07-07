@@ -2,7 +2,7 @@ import type { FastifyInstance } from 'fastify';
 import { requireUser } from '../auth/plugin.js';
 import { and, eq } from 'drizzle-orm';
 import { db } from '../db/client.js';
-import { cards, deckAnalyses, deckCards, decks } from '../db/schema.js';
+import { cards, collectionItems, deckAnalyses, deckCards, decks } from '../db/schema.js';
 import type {
   CreateDeckBody,
   DeckCardDTO,
@@ -150,7 +150,18 @@ export async function deckRoutes(app: FastifyInstance): Promise<void> {
       .where(eq(deckCards.deckId, id));
     const entries = rows.map((r) => ({ card: r.cards, quantity: r.deck_cards.quantity }));
 
-    const result = await analyzeDeck(entries, deck.name);
+    // Build card-name → owned-quantity map, aggregating across all printings.
+    const collectionRows = await db
+      .select({ name: cards.name, quantity: collectionItems.quantity })
+      .from(collectionItems)
+      .innerJoin(cards, eq(collectionItems.cardId, cards.id))
+      .where(eq(collectionItems.userId, user.id));
+    const ownedCards = new Map<string, number>();
+    for (const row of collectionRows) {
+      ownedCards.set(row.name, (ownedCards.get(row.name) ?? 0) + row.quantity);
+    }
+
+    const result = await analyzeDeck(entries, deck.name, ownedCards);
     const [saved] = await db
       .insert(deckAnalyses)
       .values({

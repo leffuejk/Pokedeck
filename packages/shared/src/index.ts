@@ -96,6 +96,8 @@ export interface Recommendation {
   cardName?: string;
   reason: string;
   priority: 'high' | 'medium' | 'low';
+  ownedQuantity?: number;
+  acquisition?: boolean;
 }
 
 export interface MissingCard {
