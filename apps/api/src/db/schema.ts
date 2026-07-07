@@ -24,7 +24,8 @@ import type { AdapterAccountType } from '@auth/core/adapters';
 // ─────────────────────────────────────────────────────────────
 // Enums
 // ─────────────────────────────────────────────────────────────
-export const cardSupertype = pgEnum('card_supertype', ['Pokémon', 'Trainer', 'Energy']);
+// 'Other' buckets any unknown/future supertype rather than dropping it (CLAUDE.md).
+export const cardSupertype = pgEnum('card_supertype', ['Pokémon', 'Trainer', 'Energy', 'Other']);
 export const deckFormat = pgEnum('deck_format', ['standard', 'expanded', 'unlimited', 'glc']);
 export const deckZone = pgEnum('deck_zone', ['main', 'sideboard']);
 export const playstyle = pgEnum('playstyle', [
@@ -152,7 +153,14 @@ export const cards = pgTable(
     smallImageUrl: text('small_image_url'),
     largeImageUrl: text('large_image_url'),
     legalities: jsonb('legalities').$type<Legalities>(),
-    raw: jsonb('raw'), // untouched API payload
+    // Promoted legality columns for fast, indexable format filtering (values:
+    // 'Legal' | 'Banned' | null). Backfilled from `legalities` and kept in sync.
+    legalityStandard: text('legality_standard'),
+    legalityExpanded: text('legality_expanded'),
+    raw: jsonb('raw'), // complete source card JSON — authoritative, lossless
+    // sha256 of the source payload; lets the sync classify insert/update/unchanged
+    // and skip writes for unchanged cards.
+    sourceHash: text('source_hash'),
     updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow().notNull(),
   },
   (t) => [
@@ -161,6 +169,7 @@ export const cards = pgTable(
     index('cards_supertype_idx').on(t.supertype),
     index('cards_types_idx').using('gin', t.types),
     index('cards_dex_idx').using('gin', t.nationalPokedexNumbers),
+    index('cards_legality_standard_idx').on(t.legalityStandard),
   ],
 );
 

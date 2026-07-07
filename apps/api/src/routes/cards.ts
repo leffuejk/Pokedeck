@@ -3,6 +3,9 @@ import { and, arrayContains, eq, ilike, sql } from 'drizzle-orm';
 import { db } from '../db/client.js';
 import { cards } from '../db/schema.js';
 import type { CardDTO, Paginated } from '@pokedeck/shared';
+import { getCardById, type CardLookup } from '../services/card-repository.js';
+import { cacheCard } from '../services/card-store.js';
+import { fetchCardById } from '../services/pokemontcg.js';
 
 function toDTO(c: typeof cards.$inferSelect): CardDTO {
   return {
@@ -58,9 +61,22 @@ export async function cardRoutes(app: FastifyInstance): Promise<void> {
     return result;
   });
 
+  // Local-first single-card lookup: read our table, fall back to the live API on
+  // a cache miss (logged), and cache the result so the next read is local.
+  const lookup: CardLookup = {
+    findLocal: async (id) => (await db.select().from(cards).where(eq(cards.id, id)).limit(1))[0] ?? null,
+    fetchRemote: async (id) => {
+      const apiCard = await fetchCardById(id);
+      return apiCard ? { card: apiCard, setId: apiCard.set.id } : null;
+    },
+    cacheCard,
+    onFallback: (id) =>
+      app.log.warn({ cardId: id }, 'card cache miss — falling back to live pokemontcg.io API'),
+  };
+
   app.get('/api/cards/:id', async (req, reply) => {
     const { id } = req.params as { id: string };
-    const [row] = await db.select().from(cards).where(eq(cards.id, id)).limit(1);
+    const row = await getCardById(id, lookup);
     if (!row) return reply.code(404).send({ error: 'not_found', message: 'Card not found.' });
     return { ...toDTO(row), abilities: row.abilities, attacks: row.attacks };
   });
