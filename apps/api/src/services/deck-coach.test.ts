@@ -2,6 +2,7 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { analyzeDeck } from './deck-coach.js';
 import type { DeckEntry } from './deck-metrics.js';
 import * as foundryModule from './foundry.js';
+import type { FoundryClient } from './foundry.js';
 
 vi.mock('./foundry.js', () => ({
   getFoundry: vi.fn(),
@@ -89,9 +90,9 @@ describe('analyzeDeck – heuristic path (no Foundry)', () => {
     const result = await analyzeDeck(deck, 'Multi-type');
     const ORDER: Record<string, number> = { high: 0, medium: 1, low: 2 };
     for (let i = 1; i < result.recommendations.length; i++) {
-      expect(ORDER[result.recommendations[i].priority]).toBeGreaterThanOrEqual(
-        ORDER[result.recommendations[i - 1].priority],
-      );
+      const curr = result.recommendations[i]!;
+      const prev = result.recommendations[i - 1]!;
+      expect(ORDER[curr.priority]!).toBeGreaterThanOrEqual(ORDER[prev.priority]!);
     }
   });
 
@@ -170,18 +171,20 @@ describe('analyzeDeck – LLM path (Foundry available)', () => {
         missingCards: [],
       }),
     );
-    vi.mocked(foundryModule.getFoundry).mockResolvedValue({ complete: mockComplete } as any);
+    vi.mocked(foundryModule.getFoundry).mockResolvedValue({
+      complete: mockComplete,
+    } as unknown as FoundryClient);
 
     const result = await analyzeDeck(balancedDeck(), 'Test Deck');
     expect(result.model).toBe('foundry');
     expect(result.recommendations).toHaveLength(1);
-    expect(result.recommendations[0].cardName).toBe('Radiant Greninja');
+    expect(result.recommendations[0]!.cardName).toBe('Radiant Greninja');
   });
 
   it('falls back to heuristic with at least 1 recommendation when LLM throws', async () => {
     vi.mocked(foundryModule.getFoundry).mockResolvedValue({
       complete: vi.fn().mockRejectedValue(new Error('API error')),
-    } as any);
+    } as unknown as FoundryClient);
 
     const result = await analyzeDeck(balancedDeck(), 'Test Deck');
     expect(result.model).toBe('heuristic');
