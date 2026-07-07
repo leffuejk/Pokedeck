@@ -1,5 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { toDTO, toCardDetailDTO } from './card-dto.js';
+import type { Card } from '../db/schema.js';
 
 const fullRow = {
   id: 'sv1-1',
@@ -35,7 +36,7 @@ const fullRow = {
 
 describe('toCardDetailDTO — detail data retrieval', () => {
   it('maps all structured columns to the detail DTO', () => {
-    const dto = toCardDetailDTO(fullRow as any);
+    const dto = toCardDetailDTO(fullRow as unknown as Card);
 
     expect(dto.id).toBe('sv1-1');
     expect(dto.name).toBe('Bulbasaur');
@@ -55,8 +56,8 @@ describe('toCardDetailDTO — detail data retrieval', () => {
   });
 
   it('includes base CardDTO fields', () => {
-    const dto = toCardDetailDTO(fullRow as any);
-    const base = toDTO(fullRow as any);
+    const dto = toCardDetailDTO(fullRow as unknown as Card);
+    const base = toDTO(fullRow as unknown as Card);
 
     expect(dto.id).toBe(base.id);
     expect(dto.hp).toBe(base.hp);
@@ -98,7 +99,7 @@ describe('toCardDetailDTO — missing-card-detail path', () => {
       updatedAt: new Date(),
     };
 
-    const dto = toCardDetailDTO(minimalRow as any);
+    const dto = toCardDetailDTO(minimalRow as unknown as Card);
 
     expect(dto.attacks).toBeNull();
     expect(dto.abilities).toBeNull();
