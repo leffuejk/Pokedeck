@@ -12,7 +12,7 @@ on:
         description: What to run
         type: choice
         default: both
-        options: [both, cards, archetypes]
+        options: [both, cards, archetypes, collection]
   schedule:
     - cron: "0 6 1 * *" # 06:00 UTC on the 1st of each month — refresh cards
 
@@ -73,6 +73,10 @@ jobs:
       - name: Sync cards
         if: env.TASK == 'both' || env.TASK == 'cards'
         run: npm run cards:sync --workspace apps/api
+
+      - name: Seed demo collection (first user)
+        if: env.TASK == 'collection'
+        run: npm run seed:collection --workspace apps/api
 
       - name: Close Postgres firewall for runner
         if: always() && steps.pgfw.outcome == 'success'
