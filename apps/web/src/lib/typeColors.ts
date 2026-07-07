@@ -31,10 +31,17 @@ export const TYPE_THEME: Record<PokemonType, TypeTheme> = {
 
 const FALLBACK: TypeTheme = { color: '#94A3B8', soft: '#e2e8f0', on: '#0f172a', glyph: '❔' };
 
+/** Neutral themes for card supertypes (Trainer/Energy) that have no energy type. */
+const SUPERTYPE_THEME: Record<string, TypeTheme> = {
+  Trainer: { color: '#64748B', soft: '#f1f5f9', on: '#0f172a', glyph: 'T' },
+  Energy: { color: '#64748B', soft: '#f1f5f9', on: '#0f172a', glyph: 'E' },
+  Other: { color: '#94A3B8', soft: '#e2e8f0', on: '#0f172a', glyph: '?' },
+};
+
 /** Safe lookup that tolerates arbitrary strings coming off the API. */
 export function typeTheme(type: string | null | undefined): TypeTheme {
   if (!type) return FALLBACK;
-  return TYPE_THEME[type as PokemonType] ?? FALLBACK;
+  return TYPE_THEME[type as PokemonType] ?? SUPERTYPE_THEME[type] ?? FALLBACK;
 }
 
 /** Build a soft multi-color gradient for a card's set of types. */
