@@ -34,13 +34,8 @@ const BUCKETS: Bucket[] = [
   { label: 'Special energy', where: `c.supertype='Energy' AND (c.subtypes IS NULL OR NOT (c.subtypes @> ARRAY['Basic']::text[]))`, distinct: 12, qtyMin: 2, qtyMax: 4 },
 ];
 
-async function main() {
-  const userRes = await pool.query<{ id: string; email: string }>(
-    `SELECT id, email FROM users ORDER BY created_at ASC LIMIT 1`,
-  );
-  const user = userRes.rows[0];
-  if (!user) throw new Error('No users found — sign in first.');
-  console.log(`Seeding collection for ${user.email} (${user.id})`);
+async function seedForUser(user: { id: string; email: string }) {
+  console.log(`\nSeeding collection for ${user.email} (${user.id})`);
 
   await pool.query(`DELETE FROM collection_items WHERE user_id = $1`, [user.id]);
 
@@ -90,6 +85,23 @@ async function main() {
     grand += Number(t.total);
   }
   console.log(`  ${'TOTAL'.padEnd(10)} ${rows.length} distinct, ${grand} cards`);
+}
+
+async function main() {
+  const users = await pool.query<{ id: string; email: string; created_at: string }>(
+    `SELECT u.id, u.email, u.created_at,
+            (SELECT string_agg(a.provider, ',') FROM accounts a WHERE a.user_id = u.id) AS providers
+       FROM users u ORDER BY u.created_at ASC`,
+  );
+  console.log(`=== Users in DB (${users.rows.length}) ===`);
+  for (const u of users.rows as Array<{ id: string; email: string; created_at: string; providers?: string }>) {
+    console.log(`  ${u.id} | ${u.email} | providers=${u.providers ?? 'none'} | ${u.created_at}`);
+  }
+  if (users.rows.length === 0) throw new Error('No users found — sign in first.');
+
+  // Seed every user so whichever account is signed in has a collection.
+  for (const u of users.rows) await seedForUser({ id: u.id, email: u.email });
+
   await pool.end();
 }
 
