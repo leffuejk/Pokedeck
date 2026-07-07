@@ -1,4 +1,5 @@
 import type { FastifyInstance } from 'fastify';
+import { requireUser } from '../auth/plugin.js';
 import { and, asc, eq } from 'drizzle-orm';
 import { db } from '../db/client.js';
 import { cards, coachMessages, coachThreads, deckCards, decks } from '../db/schema.js';
@@ -7,7 +8,7 @@ import { coachReply } from '../services/deck-coach.js';
 
 export async function coachRoutes(app: FastifyInstance): Promise<void> {
   app.post('/api/coach', async (req, reply) => {
-    const user = await app.requireUser(req, reply);
+    const user = await requireUser(req, reply);
     if (!user) return;
     const body = req.body as CoachMessageBody;
     if (!body?.message) return reply.code(400).send({ error: 'bad_request', message: 'message required.' });
@@ -51,7 +52,7 @@ export async function coachRoutes(app: FastifyInstance): Promise<void> {
   });
 
   app.get('/api/coach/:threadId', async (req, reply) => {
-    const user = await app.requireUser(req, reply);
+    const user = await requireUser(req, reply);
     if (!user) return;
     const { threadId } = req.params as { threadId: string };
     const [t] = await db

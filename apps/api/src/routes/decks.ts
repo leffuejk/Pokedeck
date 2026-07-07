@@ -1,4 +1,5 @@
 import type { FastifyInstance } from 'fastify';
+import { requireUser } from '../auth/plugin.js';
 import { and, eq } from 'drizzle-orm';
 import { db } from '../db/client.js';
 import { cards, deckAnalyses, deckCards, decks } from '../db/schema.js';
@@ -54,7 +55,7 @@ async function loadDeckDetail(deckId: string): Promise<DeckDetailDTO | null> {
 
 export async function deckRoutes(app: FastifyInstance): Promise<void> {
   app.get('/api/decks', async (req, reply) => {
-    const user = await app.requireUser(req, reply);
+    const user = await requireUser(req, reply);
     if (!user) return;
     const rows = await db.select().from(decks).where(eq(decks.userId, user.id)).orderBy(decks.updatedAt);
     return rows.map(
@@ -72,7 +73,7 @@ export async function deckRoutes(app: FastifyInstance): Promise<void> {
   });
 
   app.post('/api/decks', async (req, reply) => {
-    const user = await app.requireUser(req, reply);
+    const user = await requireUser(req, reply);
     if (!user) return;
     const body = req.body as CreateDeckBody;
     if (!body?.name) return reply.code(400).send({ error: 'bad_request', message: 'name required.' });
@@ -84,7 +85,7 @@ export async function deckRoutes(app: FastifyInstance): Promise<void> {
   });
 
   app.get('/api/decks/:id', async (req, reply) => {
-    const user = await app.requireUser(req, reply);
+    const user = await requireUser(req, reply);
     if (!user) return;
     const { id } = req.params as { id: string };
     const detail = await loadDeckDetail(id);
@@ -93,7 +94,7 @@ export async function deckRoutes(app: FastifyInstance): Promise<void> {
   });
 
   app.put('/api/decks/:id/cards', async (req, reply) => {
-    const user = await app.requireUser(req, reply);
+    const user = await requireUser(req, reply);
     if (!user) return;
     const { id } = req.params as { id: string };
     const body = req.body as UpdateDeckCardBody;
@@ -123,7 +124,7 @@ export async function deckRoutes(app: FastifyInstance): Promise<void> {
   });
 
   app.delete('/api/decks/:id', async (req, reply) => {
-    const user = await app.requireUser(req, reply);
+    const user = await requireUser(req, reply);
     if (!user) return;
     const { id } = req.params as { id: string };
     await db.delete(decks).where(and(eq(decks.id, id), eq(decks.userId, user.id)));
@@ -132,7 +133,7 @@ export async function deckRoutes(app: FastifyInstance): Promise<void> {
 
   // AI grading -----------------------------------------------------
   app.post('/api/decks/:id/analyze', async (req, reply) => {
-    const user = await app.requireUser(req, reply);
+    const user = await requireUser(req, reply);
     if (!user) return;
     const { id } = req.params as { id: string };
     const [deck] = await db
@@ -184,7 +185,7 @@ export async function deckRoutes(app: FastifyInstance): Promise<void> {
   });
 
   app.get('/api/decks/:id/analyses', async (req, reply) => {
-    const user = await app.requireUser(req, reply);
+    const user = await requireUser(req, reply);
     if (!user) return;
     const { id } = req.params as { id: string };
     const rows = await db

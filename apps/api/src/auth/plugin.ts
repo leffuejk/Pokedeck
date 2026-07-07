@@ -58,8 +58,6 @@ export async function getSessionFromRequest(req: FastifyRequest): Promise<Sessio
 }
 
 export async function authPlugin(app: FastifyInstance): Promise<void> {
-  app.decorateRequest('session', null);
-
   // Auth.js needs the raw request body (signin/callback are form-urlencoded, which
   // Fastify otherwise rejects with 415). Capture bodies verbatim as a string. This
   // parser is scoped to the auth plugin's encapsulation context, so the JSON API
@@ -74,28 +72,23 @@ export async function authPlugin(app: FastifyInstance): Promise<void> {
     const response = await Auth(toWebRequest(req), authConfig);
     await sendWebResponse(reply, response);
   });
-
-  app.decorate(
-    'requireUser',
-    async (req: FastifyRequest, reply: FastifyReply): Promise<{ id: string } | undefined> => {
-      const session = await getSessionFromRequest(req);
-      if (!session?.user?.id) {
-        reply.code(401).send({ error: 'unauthorized', message: 'Sign in required.' });
-        return undefined;
-      }
-      req.session = session;
-      return { id: session.user.id };
-    },
-  );
 }
 
-declare module 'fastify' {
-  interface FastifyRequest {
-    session: Session | null;
+/**
+ * Guard for authenticated routes. Returns the user id, or sends a 401 and returns
+ * undefined. Exported as a plain function (not a Fastify decorator) so it works
+ * from any route module regardless of plugin encapsulation.
+ */
+export async function requireUser(
+  req: FastifyRequest,
+  reply: FastifyReply,
+): Promise<{ id: string } | undefined> {
+  const session = await getSessionFromRequest(req);
+  if (!session?.user?.id) {
+    reply.code(401).send({ error: 'unauthorized', message: 'Sign in required.' });
+    return undefined;
   }
-  interface FastifyInstance {
-    requireUser(req: FastifyRequest, reply: FastifyReply): Promise<{ id: string } | undefined>;
-  }
+  return { id: session.user.id };
 }
 
 declare module '@auth/core/types' {
