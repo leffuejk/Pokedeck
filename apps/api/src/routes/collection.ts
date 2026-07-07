@@ -1,4 +1,5 @@
 import type { FastifyInstance } from 'fastify';
+import { requireUser } from '../auth/plugin.js';
 import { and, eq } from 'drizzle-orm';
 import { db } from '../db/client.js';
 import { cards, collectionItems } from '../db/schema.js';
@@ -6,7 +7,7 @@ import type { CollectionItemDTO, UpsertCollectionItemBody } from '@pokedeck/shar
 
 export async function collectionRoutes(app: FastifyInstance): Promise<void> {
   app.get('/api/collection', async (req, reply) => {
-    const user = await app.requireUser(req, reply);
+    const user = await requireUser(req, reply);
     if (!user) return;
     const rows = await db
       .select()
@@ -37,7 +38,7 @@ export async function collectionRoutes(app: FastifyInstance): Promise<void> {
   });
 
   app.put('/api/collection', async (req, reply) => {
-    const user = await app.requireUser(req, reply);
+    const user = await requireUser(req, reply);
     if (!user) return;
     const body = req.body as UpsertCollectionItemBody;
     if (!body?.cardId || typeof body.quantity !== 'number')
@@ -62,7 +63,7 @@ export async function collectionRoutes(app: FastifyInstance): Promise<void> {
   });
 
   app.delete('/api/collection/:cardId', async (req, reply) => {
-    const user = await app.requireUser(req, reply);
+    const user = await requireUser(req, reply);
     if (!user) return;
     const { cardId } = req.params as { cardId: string };
     await db
