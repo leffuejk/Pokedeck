@@ -39,13 +39,13 @@ export function TypeBadge({
 
   if (interactive) {
     return (
-      <button type="button" onClick={onClick} className={classes} style={style} aria-pressed={selected}>
+      <button type="button" onClick={onClick} className={classes} style={style} aria-pressed={selected} title={type}>
         {content}
       </button>
     );
   }
   return (
-    <span className={classes} style={style}>
+    <span className={classes} style={style} title={type}>
       {content}
     </span>
   );

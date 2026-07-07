@@ -48,9 +48,10 @@ export function CardTile({ card, owned, footer, onClick, className }: CardTilePr
           <span className="pd-chip border border-border bg-surface-2 px-2 py-0.5 text-[11px] text-muted">
             {card.supertype}
           </span>
-          {(card.types ?? []).slice(0, 2).map((t) => (
-            <TypeBadge key={t} type={t} size="sm" />
-          ))}
+          {(card.types?.length ?? 0) > 0
+            ? (card.types ?? []).map((t) => <TypeBadge key={t} type={t} size="sm" />)
+            : <TypeBadge type={card.supertype} size="sm" />
+          }
         </div>
         {footer && <div className="pt-1">{footer}</div>}
       </div>

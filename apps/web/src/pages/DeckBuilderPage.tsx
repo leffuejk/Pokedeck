@@ -300,9 +300,10 @@ function PickerRow({
           {card.name}
         </div>
         <div className="mt-0.5 flex flex-wrap items-center gap-1">
-          {(card.types ?? []).slice(0, 1).map((t) => (
-            <TypeBadge key={t} type={t} size="sm" />
-          ))}
+          {(card.types?.length ?? 0) > 0
+            ? (card.types ?? []).map((t) => <TypeBadge key={t} type={t} size="sm" />)
+            : <TypeBadge type={card.supertype} size="sm" />
+          }
           <span className="text-[11px] font-bold text-muted">own ×{owned}</span>
         </div>
       </div>
