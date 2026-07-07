@@ -11,6 +11,7 @@ import {
 import { filterOwnedCards } from '../lib/collectionFilters';
 import { PageHeader } from '../components/AppShell';
 import { CardTile } from '../components/CardTile';
+import { CardDetailModal } from '../components/CardDetailModal';
 import { TypeBadge } from '../components/TypeBadge';
 import { QuantityStepper } from '../components/QuantityStepper';
 import { LoadingBlock } from '../components/Spinner';
@@ -23,6 +24,7 @@ export function CollectionPage() {
   const [supertype, setSupertype] = useState<string>('');
   const [page, setPage] = useState(1);
   const [showOwned, setShowOwned] = useState(false);
+  const [detailCard, setDetailCard] = useState<CardDTO | null>(null);
 
   const filters = { query, type, supertype, page };
   const { data, isLoading: cardsLoading, isFetching, isError } = useCards(filters);
@@ -157,6 +159,7 @@ export function CollectionPage() {
                   key={card.id}
                   card={card}
                   owned={qty}
+                  onClick={() => setDetailCard(card)}
                   footer={
                     <div className="flex items-center justify-between gap-2">
                       <span className="text-[11px] font-bold text-muted">Owned</span>
@@ -199,6 +202,15 @@ export function CollectionPage() {
             </div>
           )}
         </>
+      )}
+
+      {detailCard && (
+        <CardDetailModal
+          cardId={detailCard.id}
+          card={detailCard}
+          owned={owned.get(detailCard.id) ?? 0}
+          onClose={() => setDetailCard(null)}
+        />
       )}
     </div>
   );

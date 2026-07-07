@@ -38,6 +38,32 @@ export const POKEMON_TYPES = [
 ] as const;
 export type PokemonType = (typeof POKEMON_TYPES)[number];
 
+// ── JSON sub-shapes (mirrored from the DB JSONB columns) ──
+export interface Ability {
+  name: string;
+  text: string;
+  type: string;
+}
+
+export interface Attack {
+  name: string;
+  cost?: string[];
+  convertedEnergyCost?: number;
+  damage?: string;
+  text?: string;
+}
+
+export interface TypeMod {
+  type: string;
+  value: string;
+}
+
+export interface Legalities {
+  standard?: string;
+  expanded?: string;
+  unlimited?: string;
+}
+
 // ── DTOs ──
 export interface CardDTO {
   id: string;
@@ -51,6 +77,19 @@ export interface CardDTO {
   regulationMark: string | null;
   smallImageUrl: string | null;
   largeImageUrl: string | null;
+}
+
+export interface CardDetailDTO extends CardDTO {
+  evolvesFrom: string | null;
+  evolvesTo: string[] | null;
+  abilities: Ability[] | null;
+  attacks: Attack[] | null;
+  weaknesses: TypeMod[] | null;
+  resistances: TypeMod[] | null;
+  retreatCost: string[] | null;
+  convertedRetreatCost: number | null;
+  flavorText: string | null;
+  legalities: Legalities | null;
 }
 
 export interface CollectionItemDTO {

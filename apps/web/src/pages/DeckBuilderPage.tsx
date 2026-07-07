@@ -7,6 +7,7 @@ import { useDeck, useUpdateDeckCard } from '../hooks/useDeck';
 import { useCollection } from '../hooks/useCollection';
 import { useAnalyzeDeck } from '../hooks/useAnalyzeDeck';
 import { CardTile } from '../components/CardTile';
+import { CardDetailModal } from '../components/CardDetailModal';
 import { ProgressRing } from '../components/ProgressRing';
 import { QuantityStepper } from '../components/QuantityStepper';
 import { TypeBadge } from '../components/TypeBadge';
@@ -26,6 +27,7 @@ export function DeckBuilderPage() {
 
   const [search, setSearch] = useState('');
   const [modalOpen, setModalOpen] = useState(false);
+  const [detailCard, setDetailCard] = useState<CardDTO | null>(null);
 
   const deckQty = useMemo(() => {
     const map = new Map<string, number>();
@@ -156,6 +158,7 @@ export function DeckBuilderPage() {
                     key={dc.cardId}
                     card={dc.card}
                     owned={dc.quantity}
+                    onClick={() => setDetailCard(dc.card)}
                     footer={
                       <QuantityStepper
                         value={dc.quantity}
@@ -174,6 +177,17 @@ export function DeckBuilderPage() {
             </section>
           );
         })
+      )}
+
+      {/* Card detail modal — stacked when picker is also open */}
+      {detailCard && (
+        <CardDetailModal
+          cardId={detailCard.id}
+          card={detailCard}
+          owned={collection?.find((i) => i.cardId === detailCard.id)?.quantity}
+          onClose={() => setDetailCard(null)}
+          stacked={modalOpen}
+        />
       )}
 
       {/* Collection modal */}
@@ -216,6 +230,7 @@ export function DeckBuilderPage() {
                     max={max}
                     busy={update.isPending}
                     onChange={(n) => setDeckQuantity(item.card, n)}
+                    onInfo={() => setDetailCard(item.card)}
                   />
                 );
               })}
@@ -273,6 +288,7 @@ function PickerRow({
   max,
   busy,
   onChange,
+  onInfo,
 }: {
   card: CardDTO;
   owned: number;
@@ -280,6 +296,7 @@ function PickerRow({
   max: number;
   busy: boolean;
   onChange: (n: number) => void;
+  onInfo: () => void;
 }) {
   const image = card.smallImageUrl ?? card.largeImageUrl;
   return (
@@ -307,6 +324,15 @@ function PickerRow({
           <span className="text-[11px] font-bold text-muted">own ×{owned}</span>
         </div>
       </div>
+      <button
+        type="button"
+        onClick={onInfo}
+        className="shrink-0 rounded-lg p-1 text-muted transition-colors hover:bg-surface-2 hover:text-ink"
+        aria-label={`View details for ${card.name}`}
+        title="View card details"
+      >
+        ⓘ
+      </button>
       <QuantityStepper value={inDeck} min={0} max={max} onChange={onChange} busy={busy} />
     </div>
   );

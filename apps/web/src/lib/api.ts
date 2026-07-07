@@ -2,6 +2,7 @@ import type {
   ApiError as ApiErrorBody,
   ArchetypeDTO,
   CardDTO,
+  CardDetailDTO,
   CoachMessageBody,
   CollectionItemDTO,
   CreateDeckBody,
@@ -94,6 +95,9 @@ export const api = {
     params: { query?: string; type?: string; supertype?: string; page?: number },
     signal?: AbortSignal,
   ) => request<Paginated<CardDTO>>('/cards', { query: params, signal }),
+
+  getCard: (id: string, signal?: AbortSignal) =>
+    request<CardDetailDTO>(`/cards/${encodeURIComponent(id)}`, { signal }),
 
   getCollection: (signal?: AbortSignal) =>
     request<CollectionItemDTO[]>('/collection', { signal }),

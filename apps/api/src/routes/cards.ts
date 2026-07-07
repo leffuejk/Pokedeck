@@ -6,22 +6,7 @@ import type { CardDTO, Paginated } from '@pokedeck/shared';
 import { getCardById, type CardLookup } from '../services/card-repository.js';
 import { cacheCard } from '../services/card-store.js';
 import { fetchCardById } from '../services/pokemontcg.js';
-
-function toDTO(c: typeof cards.$inferSelect): CardDTO {
-  return {
-    id: c.id,
-    setId: c.setId,
-    name: c.name,
-    supertype: c.supertype,
-    subtypes: c.subtypes,
-    types: c.types,
-    hp: c.hp,
-    rarity: c.rarity,
-    regulationMark: c.regulationMark,
-    smallImageUrl: c.smallImageUrl,
-    largeImageUrl: c.largeImageUrl,
-  };
-}
+import { toDTO, toCardDetailDTO } from './card-dto.js';
 
 export async function cardRoutes(app: FastifyInstance): Promise<void> {
   app.get('/api/cards', async (req) => {
@@ -78,6 +63,6 @@ export async function cardRoutes(app: FastifyInstance): Promise<void> {
     const { id } = req.params as { id: string };
     const row = await getCardById(id, lookup);
     if (!row) return reply.code(404).send({ error: 'not_found', message: 'Card not found.' });
-    return { ...toDTO(row), abilities: row.abilities, attacks: row.attacks };
+    return toCardDetailDTO(row);
   });
 }
