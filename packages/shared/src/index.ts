@@ -4,7 +4,8 @@
  */
 
 // ── Domain enums (mirror the DB enums in apps/api/src/db/schema.ts) ──
-export const CARD_SUPERTYPES = ['Pokémon', 'Trainer', 'Energy'] as const;
+// 'Other' buckets unknown/future supertypes rather than dropping them (CLAUDE.md).
+export const CARD_SUPERTYPES = ['Pokémon', 'Trainer', 'Energy', 'Other'] as const;
 export type CardSupertype = (typeof CARD_SUPERTYPES)[number];
 
 export const DECK_FORMATS = ['standard', 'expanded', 'unlimited', 'glc'] as const;
