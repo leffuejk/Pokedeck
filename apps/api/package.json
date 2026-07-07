@@ -15,7 +15,8 @@
     "db:migrate": "tsx src/db/migrate.ts",
     "db:studio": "drizzle-kit studio",
     "cards:sync": "tsx src/scripts/sync-cards.ts",
-    "seed:archetypes": "tsx src/scripts/seed-archetypes.ts"
+    "seed:archetypes": "tsx src/scripts/seed-archetypes.ts",
+    "seed:collection": "tsx src/scripts/seed-collection.ts"
   },
   "dependencies": {
     "@auth/core": "^0.37.4",
