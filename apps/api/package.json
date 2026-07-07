@@ -19,14 +19,14 @@
     "seed:collection": "tsx src/scripts/seed-collection.ts"
   },
   "dependencies": {
-    "@auth/core": "^0.37.4",
+    "@auth/core": "^0.41.2",
     "@auth/drizzle-adapter": "^1.7.4",
     "@azure/ai-projects": "^1.0.0",
     "@azure/identity": "^4.5.0",
     "@fastify/cors": "^10.0.1",
     "@fastify/sensible": "^6.0.2",
     "@pokedeck/shared": "*",
-    "drizzle-orm": "^0.38.3",
+    "drizzle-orm": "^0.45.2",
     "fastify": "^5.2.0",
     "pg": "^8.13.1",
     "pino": "^9.6.0",
@@ -34,7 +34,7 @@
   },
   "devDependencies": {
     "@types/pg": "^8.11.10",
-    "drizzle-kit": "^0.30.1",
+    "drizzle-kit": "^0.31.10",
     "tsx": "^4.19.2",
     "typescript": "^5.7.3",
     "vitest": "^2.0.0"
