@@ -140,10 +140,25 @@ export function DeckAnalysisPage() {
           {latest.recommendations && latest.recommendations.length > 0 && (
             <section>
               <h2 className="mb-3 text-xl font-black">Recommendations</h2>
-              <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-                {latest.recommendations.map((rec, i) => (
-                  <RecCard key={i} rec={rec} />
-                ))}
+              <div className="pd-card p-5">
+                <ul className="space-y-4">
+                  {latest.recommendations.map((rec, i) => (
+                    <li key={i} className="flex items-start gap-3 border-b border-border/40 pb-4 last:border-0 last:pb-0">
+                      <span className="shrink-0 text-lg leading-tight">{ACTION_EMOJI[rec.action]}</span>
+                      <div className="min-w-0 flex-1">
+                        <div className="flex flex-wrap items-center gap-2">
+                          {rec.cardName && (
+                            <span className="font-display font-extrabold">{rec.cardName}</span>
+                          )}
+                          <span className={`pd-chip px-2 py-0.5 text-[11px] uppercase ${PRIORITY_STYLES[rec.priority]}`}>
+                            {rec.priority}
+                          </span>
+                        </div>
+                        <p className="mt-1 text-sm text-muted">{rec.reason}</p>
+                      </div>
+                    </li>
+                  ))}
+                </ul>
               </div>
             </section>
           )}
@@ -212,22 +227,6 @@ const ACTION_EMOJI: Record<Recommendation['action'], string> = {
   acquire: '🛒',
 };
 
-function RecCard({ rec }: { rec: Recommendation }) {
-  return (
-    <div className="pd-card p-4">
-      <div className="flex items-center justify-between gap-2">
-        <span className="pd-chip bg-surface-2 px-2 py-0.5 text-[11px] uppercase">
-          {ACTION_EMOJI[rec.action]} {rec.action}
-        </span>
-        <span className={`pd-chip px-2 py-0.5 text-[11px] uppercase ${PRIORITY_STYLES[rec.priority]}`}>
-          {rec.priority}
-        </span>
-      </div>
-      {rec.cardName && <div className="mt-2 font-display font-extrabold">{rec.cardName}</div>}
-      <p className="mt-1 text-sm text-muted">{rec.reason}</p>
-    </div>
-  );
-}
 
 function MissingCardRow({ card }: { card: MissingCard }) {
   return (
