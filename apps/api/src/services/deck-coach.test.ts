@@ -153,6 +153,148 @@ describe('analyzeDeck – heuristic path (no Foundry)', () => {
   });
 });
 
+describe('analyzeDeck – collection-aware ownership (heuristic path)', () => {
+  beforeEach(() => {
+    vi.mocked(foundryModule.getFoundry).mockResolvedValue(null);
+  });
+
+  it('marks a recommendation as owned when the card is in the collection', async () => {
+    const ownedCards = new Map([["Professor's Research", 4], ['Iono', 2]]);
+    const deck = [
+      e('Salamence V', 'Pokémon', 6, ['Basic'], ['Water']),
+      e('Water Energy', 'Energy', 12),
+    ];
+    const result = await analyzeDeck(deck, 'Sparse Deck', ownedCards);
+    const ownedRec = result.recommendations.find(
+      (r) => r.cardName && ownedCards.has(r.cardName),
+    );
+    expect(ownedRec).toBeDefined();
+    expect(ownedRec!.acquisition).toBe(false);
+    expect(ownedRec!.ownedQuantity).toBeGreaterThan(0);
+  });
+
+  it('marks a recommendation as acquisition when the card is not owned', async () => {
+    // Empty collection — no cards owned
+    const ownedCards = new Map<string, number>();
+    // Deck missing draw supporters so heuristic emits a rec for Prof's Research or Iono
+    const deck = [
+      e('Salamence V', 'Pokémon', 6, ['Basic'], ['Water']),
+      e('Water Energy', 'Energy', 12),
+    ];
+    const result = await analyzeDeck(deck, 'No Collection', ownedCards);
+    // With an empty collection, enrichment is skipped — no acquisition flags on recs
+    // (behavior: enrichWithOwnership is a no-op when ownedCards is empty)
+    result.recommendations.forEach((r) => {
+      expect(r.acquisition).toBeUndefined();
+      expect(r.ownedQuantity).toBeUndefined();
+    });
+  });
+
+  it('marks recommendation as acquisition when card name is not in collection', async () => {
+    // Collection that does NOT contain the heuristic-recommended card names
+    const ownedCards = new Map([['Pikachu', 3]]);
+    const deck = [
+      e('Salamence V', 'Pokémon', 6, ['Basic'], ['Water']),
+      e('Water Energy', 'Energy', 12),
+    ];
+    const result = await analyzeDeck(deck, 'Test', ownedCards);
+    const namedRecs = result.recommendations.filter((r) => r.cardName);
+    namedRecs.forEach((r) => {
+      expect(r.acquisition).toBe(true);
+      expect(r.ownedQuantity).toBe(0);
+    });
+  });
+
+  it('owned recommendations sort before acquisitions within the same priority tier', async () => {
+    // Collection owns Iono but not Prof's Research
+    const ownedCards = new Map([['Iono', 4]]);
+    // Deck with 0 draw supporters → heuristic emits high-priority rec for Prof's Research,
+    // and may emit one for Iono (medium). Both have cardNames. Owned should come first.
+    const deck = [
+      e('Salamence V', 'Pokémon', 6, ['Basic'], ['Water']),
+      e('Ultra Ball', 'Trainer', 4),
+      e('Quick Ball', 'Trainer', 4),
+      e('Water Energy', 'Energy', 12),
+    ];
+    const result = await analyzeDeck(deck, 'Sort Test', ownedCards);
+    const namedRecs = result.recommendations.filter((r) => r.cardName);
+    for (let i = 1; i < namedRecs.length; i++) {
+      const prev = namedRecs[i - 1]!;
+      const curr = namedRecs[i]!;
+      if (prev.priority === curr.priority) {
+        // Owned (acquisition=false) must come before or equal to acquisition=true
+        if (curr.acquisition === false || curr.acquisition === undefined) {
+          expect(prev.acquisition).not.toBe(true);
+        }
+      }
+    }
+  });
+
+  it('does not set ownership fields on recommendations without a cardName', async () => {
+    const ownedCards = new Map([['SomeCard', 2]]);
+    const result = await analyzeDeck(
+      [e('Salamence V', 'Pokémon', 4, ['Basic'], ['Water'])],
+      'Incomplete',
+      ownedCards,
+    );
+    const noNameRecs = result.recommendations.filter((r) => !r.cardName);
+    noNameRecs.forEach((r) => {
+      expect(r.acquisition).toBeUndefined();
+      expect(r.ownedQuantity).toBeUndefined();
+    });
+  });
+});
+
+describe('analyzeDeck – collection-aware ownership (LLM path)', () => {
+  it('enriches LLM recommendations with owned quantity', async () => {
+    const ownedCards = new Map([['Radiant Greninja', 2]]);
+    vi.mocked(foundryModule.getFoundry).mockResolvedValue({
+      complete: vi.fn().mockResolvedValue(
+        JSON.stringify({
+          summary: 'Good deck.',
+          strengths: ['Strong draw'],
+          weaknesses: ['Thin attack line'],
+          recommendations: [
+            {
+              action: 'add',
+              cardName: 'Radiant Greninja',
+              reason: 'Provides draw-on-attack synergy.',
+              priority: 'high',
+            },
+          ],
+          missingCards: [],
+        }),
+      ),
+    } as unknown as FoundryClient);
+
+    const result = await analyzeDeck(balancedDeck(), 'Test Deck', ownedCards);
+    expect(result.recommendations[0]!.cardName).toBe('Radiant Greninja');
+    expect(result.recommendations[0]!.ownedQuantity).toBe(2);
+    expect(result.recommendations[0]!.acquisition).toBe(false);
+  });
+
+  it('marks LLM recommendation as acquisition when card is not owned', async () => {
+    const ownedCards = new Map([['Pikachu', 1]]);
+    vi.mocked(foundryModule.getFoundry).mockResolvedValue({
+      complete: vi.fn().mockResolvedValue(
+        JSON.stringify({
+          summary: 'Good deck.',
+          strengths: [],
+          weaknesses: [],
+          recommendations: [
+            { action: 'acquire', cardName: 'Iono', reason: 'Needed for disruption.', priority: 'medium' },
+          ],
+          missingCards: [],
+        }),
+      ),
+    } as unknown as FoundryClient);
+
+    const result = await analyzeDeck(balancedDeck(), 'Test Deck', ownedCards);
+    expect(result.recommendations[0]!.acquisition).toBe(true);
+    expect(result.recommendations[0]!.ownedQuantity).toBe(0);
+  });
+});
+
 describe('analyzeDeck – LLM path (Foundry available)', () => {
   it('returns recommendations from LLM response', async () => {
     const mockComplete = vi.fn().mockResolvedValue(

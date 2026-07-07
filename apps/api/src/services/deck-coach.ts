@@ -35,27 +35,48 @@ RULES — these are hard requirements:
 2. Each recommendation MUST reference actual card names, counts, or ratios from THIS deck (e.g. "Your draw-supporter count is 3 — add Iono or Professor's Research to reach 6+", or "Cut Arceus VSTAR from 3 to 2 to free space for consistency trainers").
 3. Only if the deck is genuinely optimal (world-class ratios, no meaningful improvements — an extremely rare bar), set exactly one recommendation explaining in detail why no changes are needed.
 4. summary must not be praise-only. Phrases like "keep tuning and it will shine" with no substance are not valid output.
+5. If "Owned collection" data is present in the user message, prefer recommending cards already in that list. When the recommended card appears in the collection, reference the owned quantity (e.g. "you already own 3 — just slot them in"). When recommending a card not in the collection, note it requires acquisition (e.g. "you'll need to pick this up").
 Be encouraging but concrete. Specificity is mandatory.`;
 
 /**
  * Grade a deck. Always computes deterministic metrics; if Foundry is available,
  * enriches with AI narrative + recommendations. Otherwise returns a templated
  * narrative derived from the metrics so the feature still works offline.
+ *
+ * ownedCards: card name → total quantity owned across all printings. Used to
+ * label recommendations as "owned" or "acquisition" without fuzzy matching.
+ * Post-processing approach chosen over prompt-only: works for both paths and
+ * keeps the LLM response schema unchanged.
  */
 export async function analyzeDeck(
   entries: DeckEntry[],
   deckName: string,
+  ownedCards: Map<string, number> = new Map(),
 ): Promise<DeckAnalysisResult> {
   const metrics = computeDeckMetrics(entries);
   const foundry = await getFoundry();
 
   if (!foundry) {
-    return heuristicNarrative(metrics, deckName, entries);
+    const result = heuristicNarrative(metrics, deckName, entries);
+    return { ...result, recommendations: enrichWithOwnership(result.recommendations, ownedCards) };
   }
 
   const deckList = entries
     .map((e) => `${e.quantity}x ${e.card.name} (${e.card.supertype}${e.card.types?.length ? ', ' + e.card.types.join('/') : ''})`)
     .join('\n');
+
+  // Compact collection summary — up to 50 entries sorted by quantity desc so
+  // the LLM can reference owned cards in its reason text without flooding context.
+  let collectionContext = '';
+  if (ownedCards.size > 0) {
+    const lines = [...ownedCards.entries()]
+      .sort((a, b) => b[1] - a[1])
+      .slice(0, 50)
+      .map(([name, qty]) => `${qty}× ${name}`)
+      .join(', ');
+    collectionContext = `\n\nOwned collection: ${lines}`;
+  }
+
   const user = `Deck "${deckName}" (${metrics.total}/${STANDARD_DECK_SIZE} cards)
 
 Computed metrics:
@@ -66,7 +87,7 @@ Computed metrics:
 - Scores (0-100): ${JSON.stringify(metrics.scores)}
 
 Deck list:
-${deckList}`;
+${deckList}${collectionContext}`;
 
   try {
     const json = await foundry.complete(SYSTEM_PROMPT, user);
@@ -77,7 +98,7 @@ ${deckList}`;
       summary: parsed.summary ?? '',
       strengths: parsed.strengths ?? [],
       weaknesses: parsed.weaknesses ?? [],
-      recommendations: parsed.recommendations ?? [],
+      recommendations: enrichWithOwnership(parsed.recommendations ?? [], ownedCards),
       missingCards: (parsed.missingCards ?? []).map((m) => ({
         cardId: '',
         cardName: m.cardName,
@@ -89,8 +110,34 @@ ${deckList}`;
       foundryRunId: null,
     };
   } catch {
-    return heuristicNarrative(metrics, deckName, entries);
+    const result = heuristicNarrative(metrics, deckName, entries);
+    return { ...result, recommendations: enrichWithOwnership(result.recommendations, ownedCards) };
   }
+}
+
+/**
+ * Tag each recommendation with ownership data and re-sort so owned-card
+ * suggestions appear before acquisitions within the same priority tier.
+ */
+function enrichWithOwnership(
+  recommendations: Recommendation[],
+  ownedCards: Map<string, number>,
+): Recommendation[] {
+  if (ownedCards.size === 0) return recommendations;
+
+  const enriched: Recommendation[] = recommendations.map((rec) => {
+    if (!rec.cardName) return rec;
+    const owned = ownedCards.get(rec.cardName) ?? 0;
+    return { ...rec, ownedQuantity: owned, acquisition: owned === 0 };
+  });
+
+  const PRIORITY_ORDER: Record<Recommendation['priority'], number> = { high: 0, medium: 1, low: 2 };
+  return enriched.sort((a, b) => {
+    const pDiff = PRIORITY_ORDER[a.priority] - PRIORITY_ORDER[b.priority];
+    if (pDiff !== 0) return pDiff;
+    // Within same priority: owned (acquisition=false/undefined) before acquisitions
+    return (a.acquisition ? 1 : 0) - (b.acquisition ? 1 : 0);
+  });
 }
 
 /** Ask the coach a free-form question (no Foundry -> canned helpful reply). */

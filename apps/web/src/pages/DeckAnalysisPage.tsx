@@ -153,6 +153,15 @@ export function DeckAnalysisPage() {
                           <span className={`pd-chip px-2 py-0.5 text-[11px] uppercase ${PRIORITY_STYLES[rec.priority]}`}>
                             {rec.priority}
                           </span>
+                          {rec.acquisition ? (
+                            <span className="pd-chip px-2 py-0.5 text-[11px] bg-amber-500/15 text-amber-600 dark:text-amber-400">
+                              acquire
+                            </span>
+                          ) : rec.ownedQuantity != null && rec.ownedQuantity > 0 ? (
+                            <span className="pd-chip px-2 py-0.5 text-[11px] bg-green-500/15 text-green-600 dark:text-green-400">
+                              owned ×{rec.ownedQuantity}
+                            </span>
+                          ) : null}
                         </div>
                         <p className="mt-1 text-sm text-muted">{rec.reason}</p>
                       </div>
