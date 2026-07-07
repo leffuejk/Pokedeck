@@ -1,4 +1,4 @@
-import { defineConfig } from 'vitest/config';
+import { defineConfig } from 'vite';
 import react from '@vitejs/plugin-react';
 
 // The API runs at http://localhost:3000; the web dev server at http://localhost:5173.
@@ -13,8 +13,5 @@ export default defineConfig({
         changeOrigin: true,
       },
     },
-  },
-  test: {
-    environment: 'node',
   },
 });
