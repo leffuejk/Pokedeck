@@ -4,7 +4,7 @@
  */
 import { sql } from 'drizzle-orm';
 import { db } from '../db/client.js';
-import { cards, sets, cardSyncRuns } from '../db/schema.js';
+import { cards, sets, cardSyncRuns, type Card } from '../db/schema.js';
 import type { CardStore } from './card-sync.js';
 import type { MappedCard, MappedSet } from './card-mapping.js';
 
@@ -59,6 +59,16 @@ function excludedSet(cols: string[]): Record<string, unknown> {
 }
 function toSnake(s: string): string {
   return s.replace(/[A-Z]/g, (m) => `_${m.toLowerCase()}`);
+}
+
+/** Upsert a single card and return the stored row (used by the fallback cache-fill). */
+export async function cacheCard(row: MappedCard): Promise<Card | null> {
+  const [stored] = await db
+    .insert(cards)
+    .values(row)
+    .onConflictDoUpdate({ target: cards.id, set: excludedSet(CARD_COLS) })
+    .returning();
+  return stored ?? null;
 }
 
 export function createDbStore(): CardStore {
