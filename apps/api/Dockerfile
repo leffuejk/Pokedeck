@@ -1,5 +1,5 @@
 # ── Build stage ────────────────────────────────────────────────
-FROM node:22-alpine AS build
+FROM node:26-alpine AS build
 WORKDIR /repo
 
 # Install deps using the workspace root (better layer caching).
@@ -18,7 +18,7 @@ RUN npm run build --workspace @pokedeck/api
 RUN npm prune --omit=dev
 
 # ── Runtime stage ──────────────────────────────────────────────
-FROM node:22-alpine AS runtime
+FROM node:26-alpine AS runtime
 ENV NODE_ENV=production
 WORKDIR /repo
 COPY --from=build /repo/node_modules ./node_modules
